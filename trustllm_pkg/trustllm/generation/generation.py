@@ -26,7 +26,7 @@ class LLMGeneration:
                  num_gpus=1,
                  max_new_tokens=512,
                  debug=False,
-                 device='cuda:0'
+                 device='cuda'
                  ):
         self.model_name = ""
         self.model_path = model_path
