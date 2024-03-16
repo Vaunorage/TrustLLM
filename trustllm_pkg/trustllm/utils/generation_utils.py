@@ -22,6 +22,7 @@ rev_model_mapping = {value: key for key, value in model_mapping.items()}
 def get_models():
     return model_mapping, online_model
 
+
 def get_access_token():
     url = "https://aip.baidubce.com/oauth/2.0/token?grant_type=client_credentials&client_id={}&client_secret=".format(
         trustllm.config.client_id,
@@ -61,10 +62,10 @@ def get_ernie_res(string, temperature):
 
 
 def get_res_chatgpt(string, model, temperature):
-    gpt_model_mapping={ "chatgpt":"gpt-3.5-turbo",
-        "gpt-4":"gpt-4-1106-preview"}
-    
-    gpt_model=gpt_model_mapping[model]
+    gpt_model_mapping = {"chatgpt": "gpt-3.5-turbo",
+                         "gpt-4": "gpt-4-1106-preview"}
+
+    gpt_model = gpt_model_mapping[model]
     if gpt_model == 'gpt-3.5-turbo':
         openai.api_key = trustllm.config.openai_key
     elif gpt_model == "gpt-4-1106-preview":
@@ -87,19 +88,54 @@ def get_res_chatgpt(string, model, temperature):
 
 
 def deepinfra_api(string, model, temperature):
-    api_token = trustllm.config.deepinfra_api
-    openai.api_key = api_token
-    openai.api_base = "https://api.deepinfra.com/v1/openai"
-    top_p = 1 if temperature <= 1e-5 else 0.9
-    print(temperature)
-    chat_completion = openai.ChatCompletion.create(
-        model=rev_model_mapping[model],
-        messages=[{"role": "user", "content": string}],
-        max_tokens=5192,
-        temperature=temperature,
-        top_p=top_p,
-    )
-    return chat_completion.choices[0].message.content
+    os.environ["DEEPINFRA_API_TOKEN"] = trustllm.config.deepinfra_api
+
+    # llm = DeepInfra(model_id="mistralai/Mixtral-8x7B-Instruct-v0.1")
+    # llm.model_kwargs = {
+    #     "temperature": 0.7,
+    #     "repetition_penalty": 1.2,
+    #     "max_new_tokens": 2048,
+    #     "top_p": 0.9,
+    # }
+    url = "https://api.deepinfra.com/v1/inference/mistralai/Mixtral-8x7B-Instruct-v0.1"
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {trustllm.config.deepinfra_api}"
+        # Replace YOUR_AUTH_TOKEN_HERE with your actual token
+    }
+    data = {
+        "input": f"[INST] {string} [/INST]"
+    }
+
+    res = requests.post(url, headers=headers, json=data)
+    if res.status_code == 200:
+        return res.json()['results'][0]['generated_text']
+    else:
+        print("resquest to deepinfra did not work")
+
+    # res = llm(string.replace('\n', ' '))
+
+
+def togetherai_api(string, model, temperature):
+    api_token = trustllm.config.togetherai_api
+    # model = "mistralai/Mixtral-8x7B-Instruct-v0.1"
+    endpoint = 'https://api.together.xyz/v1/chat/completions'
+    res = requests.post(endpoint, json={
+        "model": model,
+        "max_tokens": 4096,
+        "prompt": f"[INST] {string} [/INST]",
+        "temperature": temperature,
+        "top_p": 0.7,
+        "top_k": 50,
+        "repetition_penalty": 1,
+        "stop": [
+            "[/INST]",
+            "</s>"
+        ]
+    }, headers={
+        "Authorization": f"Bearer {api_token}",
+    })
+    return res
 
 
 def replicate_api(string, model, temperature):
@@ -195,7 +231,7 @@ def zhipu_api(string, model, temperature):
 
 
 @retry(wait=wait_random_exponential(min=1, max=3), stop=stop_after_attempt(3))
-def gen_online(model_name, prompt, temperature, replicate=False, deepinfra=False):
+def gen_online(model_name, prompt, temperature, replicate=False, deepinfra=False, togetherai=False):
     if model_name == model_info['wenxin_model']:
         res = get_ernie_res(prompt, temperature=temperature)
     elif model_name == model_info['google_model']:
@@ -212,6 +248,8 @@ def gen_online(model_name, prompt, temperature, replicate=False, deepinfra=False
         res = replicate_api(prompt, model_name, temperature)
     elif deepinfra:
         res = deepinfra_api(prompt, model_name, temperature)
+    elif togetherai:
+        res = togetherai_api(prompt, model_name, temperature)
     else:
         raise ValueError(f"Unknown model name: {model_name}")
     return res

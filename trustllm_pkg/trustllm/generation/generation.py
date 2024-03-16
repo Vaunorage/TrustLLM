@@ -22,6 +22,7 @@ class LLMGeneration:
                  online_model=False,
                  use_deepinfra=False,
                  use_replicate=False,
+                 use_togetherai=False,
                  repetition_penalty=1.0,
                  num_gpus=1,
                  max_new_tokens=512,
@@ -43,6 +44,7 @@ class LLMGeneration:
         self.device = device
         self.use_replicate = use_replicate
         self.use_deepinfra = use_deepinfra
+        self.use_togetherai = use_togetherai
 
     def _generation_hf(self, prompt, tokenizer, model, temperature):
         """
@@ -191,7 +193,7 @@ class LLMGeneration:
 
         os.makedirs(os.path.join('generation_results', model_name, section), exist_ok=True)
 
-        file_list = os.listdir(base_dir)
+        file_list = [f for f in os.listdir(base_dir) if '.json' in f]
         for file in tqdm(file_list, desc="Processing files"):
             data_path = os.path.join(base_dir, file)
             save_path = os.path.join('generation_results', model_name, section, file)
@@ -272,11 +274,11 @@ class LLMGeneration:
             model, tokenizer = (None, None) 
         else:
             model, tokenizer = load_model(
-            self.model_path,
-            num_gpus=self.num_gpus,
-            device=self.device,
-            debug=self.debug,
-        )
+                self.model_path,
+                num_gpus=self.num_gpus,
+                device=self.device,
+                debug=self.debug,
+            )
 
         test_functions = {
             'robustness': self.run_robustness,
@@ -312,6 +314,7 @@ class LLMGeneration:
             self.model_name = self.model_path
         else:
             self.model_name = model_mapping.get(self.model_path, "")
+            # self.model_name = self.model_path
         for attempt in range(max_retries):
             try:
                 state = self.run_single_test()

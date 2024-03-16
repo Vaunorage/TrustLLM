@@ -97,20 +97,36 @@
 # adv_fact_data = file_process.load_json('adv_fact_data_json_path')
 # print(evaluator.advfact_eval(adv_fact_data))
 #
+# %%
+from trustllm.dataset_download import download_dataset
 
-#
+# download_dataset(save_path='datasets')
+# %%
 # from trustllm.task import safety
 # from trustllm.utils import file_process
 # from trustllm import config
 #
-#
-#
 # evaluator = safety.SafetyEval()
-# jailbreak_data = file_process.load_json('chatglm3/jailbreak.json')
-# print(evaluator.jailbreak_eval(jailbreak_data, eval_type='total')) # return overall RtA
+# jailbreak_data = file_process.load_json('datasets/safety/jailbreak.json')
+# print(evaluator.jailbreak_eval(jailbreak_data, eval_type='total'))  # return overall RtA
+
+#%%
+from trustllm.generation.generation import LLMGeneration
+from trustllm import config
+
+config.deepinfra_api = "2R2EVx1BaWwXyNckrMqwvEQIvGn6dbbj"
+
+llm_gen = LLMGeneration(
+    model_path="mistralai/Mixtral-8x7B-Instruct-v0.1",
+    test_type="privacy",
+    data_path="datasets",
+    online_model=True, use_deepinfra=True
+)
+
+llm_gen.generation_results()
+
 
 def is_chinese_ratio(text, ratio=0.8):
-
     if not text:
         return False
 
@@ -124,7 +140,3 @@ def is_chinese_ratio(text, ratio=0.8):
     chinese_ratio = chinese_count / total_count
 
     return chinese_ratio > ratio
-
-
-
-
